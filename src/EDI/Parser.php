@@ -1,8 +1,8 @@
 <?php
 /**
-EDIFACT Messages Parser
-(c)2016 Stefano Sabatini
-*/
+ * EDIFACT Messages Parser
+ * (c)2016 Stefano Sabatini
+ */
 
 namespace EDI;
 
@@ -46,19 +46,16 @@ class Parser
                 $this->errors[]="There's a not printable character on line ".$i.": ". $line;
             }
             $line = preg_replace($this->stripChars, '', $line); //basic sanitization, remove non printable chars
-            if (strlen($line)==0 || substr($line, 0, 3) === "UNA") {
+            if (strlen($line)<2 || substr($line, 0, 3) === "UNA") {
                 unset($file2[$x]);
                 continue;
-            }
-            if (strrpos($line, "'")!=strlen($line)-1) {
-                $this->errors[]='Segment not ended correctly at line '.$i. "=>". $line;
             }
             $line=$this->splitSegment($line);
         }
         $this->parsedfile=array_values($file2); //reindex
         return $file2;
     }
-    
+
     //unwrap string splitting rows on terminator (if not escaped)
     private function unwrap($string)
     {

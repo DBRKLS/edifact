@@ -34,7 +34,7 @@ $c->loadString($string);
 
 **OUTPUT**
 
-Errors 
+Errors
 ```php
 $c->errors();
 ```
@@ -42,7 +42,7 @@ Array
 ```php
 $c->get();
 ```
-     
+
 
 EDI/Encoder
 ------------------
@@ -77,15 +77,25 @@ Create from EDI file readable structured text with comments from `segments.xml`.
 ```php
 $analyser = new EDI\Analyser();
 $analyser->loadSegmentsXml('edifact/src/EDI/Mapping/d95b/segments.xml');
-$analyser->process($parsed, $rawSegments);
 ```
 * `$url` is the path to orginal EDI message file
 * `$parsed` is a by `EDI\Parser()` created EDI messages array
+
+**TEXT OUTPUT**
+```php
+$analyser->process($parsed); // returns text
+```
+Or
+```php
+$analyser->process($parsed, $rawSegments);
+```
 * `$rawSegments` (optional) is segments in raw format from `EDI\Parser::getRawSegments` to be printed before each segment in the analysed result
 
-**OUTPUT**
-```php 
-$analyser->process($parsed); // returns text
+**JSON OUTPUT**
+Get a json representation of the array, with the element names as key.
+```php
+$analyser->process($parsed);
+$json = $analyser->getJson();
 ```
 
 EDI/Reader
@@ -95,6 +105,9 @@ Read from EDI file requested segment element values.
 **INPUT**
 ```php
 $r = new Reader($x);
+$sender = $r->readEdiDataValue('UNB', 2);
+$Dt = $r->readUNBDateTimeOfPpreperation();
+
 ```
 Where X could be:
 * a url
@@ -104,11 +117,12 @@ Where X could be:
 OR
 
 ```php
+$c = new Parser($x);
+
 $r=new Reader();
-$r->parse();
-$r->load();
-// and/or
-$r->unwrap(); 
+$r->setParsedFile($c);
+$sender = $r->readEdiDataValue('UNB', 2);
+$Dt = $r->readUNBDateTimeOfPpreperation();
 ```
 
 **OUTPUT**
@@ -119,6 +133,35 @@ $c->errors();
 Array
 ```php
 $c->get();
+```
+
+EDI/Interpreter
+---------------
+Organizes the data parsed by EDI/Parser using the xml description of the message and the xml segments.
+
+**INPUT**
+```php
+$p=new EDI\Parser($edifile);
+$edi = $p->get();
+
+$analyser = new EDI\Analyser();
+$segs =$analyser->loadSegmentsXml('vendor/sabas/edifact-data/D95B/segments.xml');
+
+$interpreter = new EDI\Interpreter('vendor/sabas/edifact-data/D95B/messages/codeco.xml', $segs);
+$prep = $interpreter->prepare($edi);
+
+```
+
+**OUTPUT**
+
+Json
+```php
+$interpreter->getJson()
+```
+
+Errors (per message)
+```php
+$interpreter->getErrors()
 ```
 
 Example

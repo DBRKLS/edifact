@@ -10,6 +10,7 @@ class Analyser
 {
 
     public $segments;
+    private $jsonedi;
 
     /**
      * @param string $message_xml_file
@@ -123,6 +124,7 @@ class Analyser
      * convert segment definition from XML to array. Sequence of data_elements and
      * composite_data_element same as in XML
      * @param string $segment_xml_file
+     * @return array
      */
     public function loadSegmentsXml($segment_xml_file)
     {
@@ -146,6 +148,7 @@ class Analyser
             }
             $this->segments[$qualifier] = $segment;
         }
+        return $this->segments;
     }
 
     /**
@@ -162,6 +165,7 @@ class Analyser
             $id = $segment[0];
 
             $r[] = '';
+            $jsonsegment = [];
             if (isset($rawSegments, $rawSegments[$nrow])) {
                 $r[] = trim($rawSegments[$nrow]);
             }
@@ -173,8 +177,11 @@ class Analyser
 
                 $r[] = $id . ' - ' . $attributes['name'];
                 $r[] = '  (' . wordwrap($attributes['desc'], 75, PHP_EOL.'  ') . ')';
-                foreach ($segment as $n => $detail) {
-                    if ($n == 0 || !isset($details_desc[$n])) {
+
+                $jsonelements = ["segmentCode" => $id];
+                foreach ($segment as $idx => $detail) {
+                    $n = $idx-1;
+                    if ($idx == 0 || !isset($details_desc[$n])) {
                         continue;
                     }
                     $d_desc_attr =  $details_desc[$n]['attributes'];
@@ -185,51 +192,69 @@ class Analyser
                         $r[] = '  [' . $n . '] ' . $detail;
                         $r[] = $l1;
                         $r[] = $l2;
-
+                        $jsonelements[$d_desc_attr['name']] = $detail;
                     } else {
                         $r[] = '  [' . $n . '] ' . implode(',', $detail);
                         $r[] = $l1;
                         $r[] = $l2;
-                        $sub_details_desc =  $details_desc[$n]['details'];
 
-                        foreach ($detail as $d_n => $d_detail) {
-                            $d_sub_desc_attr =  $sub_details_desc[$d_n]['attributes'];
-                            $r[] = '    [' . $d_n . '] ' . $d_detail;
-                            $r[] = '        id: ' . $d_sub_desc_attr['id'] . ' - ' . $d_sub_desc_attr['name'];
-                            $r[] = '        ' . wordwrap($d_sub_desc_attr['desc'], 69, PHP_EOL.'        ');
-                            $r[] = '        type: ' . $d_sub_desc_attr['type'];
-                            if (isset($d_sub_desc_attr['maxlength'])) {
-                                $r[] = '        maxlen: ' . $d_sub_desc_attr['maxlength'];
-                            }
-                            if (isset($d_sub_desc_attr['required'])) {
-                                $r[] = '        required: ' . $d_sub_desc_attr['required'];
-                            }
-                            if (isset($d_sub_desc_attr['length'])) {
-                                $r[] = '        length: ' . $d_sub_desc_attr['length'];
-                            }
+                        $jsoncomposite = [];
+                        if(isset($details_desc[$n]['details'])){
+                            $sub_details_desc =  $details_desc[$n]['details'];
 
-                            //check for skipped data
-                            unset($d_sub_desc_attr['id']);
-                            unset($d_sub_desc_attr['name']);
-                            unset($d_sub_desc_attr['desc']);
-                            unset($d_sub_desc_attr['type']);
-                            unset($d_sub_desc_attr['maxlength']);
-                            unset($d_sub_desc_attr['required']);
-                            unset($d_sub_desc_attr['length']);
-                            if (!empty($d_sub_desc_attr)) {
-                                var_dump($d_sub_desc_attr);
-                            }
+                            foreach ($detail as $d_n => $d_detail) {
+                                $d_sub_desc_attr =  $sub_details_desc[$d_n]['attributes'];
+                                $r[] = '    [' . $d_n . '] ' . $d_detail;
+                                $r[] = '        id: ' . $d_sub_desc_attr['id'] . ' - ' . $d_sub_desc_attr['name'];
+                                $r[] = '        ' . wordwrap($d_sub_desc_attr['desc'], 69, PHP_EOL.'        ');
+                                $r[] = '        type: ' . $d_sub_desc_attr['type'];
 
+                                $jsoncomposite[$d_sub_desc_attr['name']] = $d_detail;
+                                if (isset($d_sub_desc_attr['maxlength'])) {
+                                    $r[] = '        maxlen: ' . $d_sub_desc_attr['maxlength'];
+                                }
+                                if (isset($d_sub_desc_attr['required'])) {
+                                    $r[] = '        required: ' . $d_sub_desc_attr['required'];
+                                }
+                                if (isset($d_sub_desc_attr['length'])) {
+                                    $r[] = '        length: ' . $d_sub_desc_attr['length'];
+                                }
+
+                                //check for skipped data
+                                unset($d_sub_desc_attr['id']);
+                                unset($d_sub_desc_attr['name']);
+                                unset($d_sub_desc_attr['desc']);
+                                unset($d_sub_desc_attr['type']);
+                                unset($d_sub_desc_attr['maxlength']);
+                                unset($d_sub_desc_attr['required']);
+                                unset($d_sub_desc_attr['length']);
+                                if (!empty($d_sub_desc_attr)) {
+                                    var_dump($d_sub_desc_attr);
+                                }
+
+                            }
                         }
+                        $jsonelements[$d_desc_attr['name']] = $jsoncomposite;
                         //exit;
                     }
                 }
+                $jsonsegment[$attributes['name']] = $jsonelements;
             } else {
                 $r[] = $id;
+                $jsonsegment["UnrecognisedType"] = $segment;
             }
-
+            $this->jsonedi[] = $jsonsegment;
         }
 
         return implode(PHP_EOL, $r);
+    }
+
+    /**
+     * return the processed EDI in json format
+     * @return string json
+     */
+    public function getJson()
+    {
+        return json_encode($this->jsonedi);
     }
 }
